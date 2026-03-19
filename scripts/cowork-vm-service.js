@@ -1476,6 +1476,19 @@ class KvmBackend extends BackendBase {
         const { id } = params;
         log(`KvmBackend spawn: id=${id}, forwarding to guest`);
 
+        // Ensure SDK is installed in the guest before spawning
+        if (this._pendingSdkInstall && this.guestConnected) {
+            try {
+                log('KvmBackend: installing SDK in guest before spawn');
+                await this._forwardToGuest({
+                    method: 'installSdk', params: this._pendingSdkInstall
+                });
+                this._pendingSdkInstall = null;
+            } catch (e) {
+                log(`KvmBackend: pre-spawn installSdk failed: ${e.message}`);
+            }
+        }
+
         try {
             const result = await this._forwardToGuest({
                 method: 'spawn', params
@@ -1576,7 +1589,26 @@ class KvmBackend extends BackendBase {
         const resolved = resolveSdkBinary(
             sdkSubpath, version, 'KvmBackend'
         );
-        if (resolved) this.sdkBinaryPath = resolved;
+        if (resolved) {
+            this.sdkBinaryPath = resolved;
+            // Compute the guest-side path via virtiofs mount
+            const homeDir = os.homedir();
+            const relPath = path.relative(homeDir, resolved);
+            this.guestSdkPath = path.join('/mnt/.virtiofs-root', relPath);
+            log(`KvmBackend: guest SDK path: ${this.guestSdkPath}`);
+        }
+        // Forward to guest so it can prepare the SDK
+        this._pendingSdkInstall = params;
+        if (this.guestConnected) {
+            try {
+                await this._forwardToGuest({ method: 'installSdk', params });
+                this._pendingSdkInstall = null;
+            } catch (e) {
+                log(`KvmBackend: installSdk forward failed: ${e.message}`);
+            }
+        } else {
+            log('KvmBackend: guest not connected yet, will install SDK before spawn');
+        }
         return {};
     }
 
