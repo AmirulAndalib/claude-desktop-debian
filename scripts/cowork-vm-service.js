@@ -1627,13 +1627,13 @@ class KvmBackend extends BackendBase {
             const homeDir = os.homedir();
             const relPath = path.relative(homeDir, resolved);
             if (relPath.startsWith('..')) {
-                log(`KvmBackend: SDK path ${resolved} is outside ` +
-                    'home dir, cannot map to guest');
+                log('KvmBackend: SDK path is outside home dir,' +
+                    ` cannot map to guest: ${resolved}`);
             } else {
-                this.guestSdkPath =
-                    path.join(VIRTIOFS_GUEST_MOUNT, relPath);
-                log(`KvmBackend: guest SDK path: ` +
-                    this.guestSdkPath);
+                this.guestSdkPath = path.join(
+                    VIRTIOFS_GUEST_MOUNT, relPath
+                );
+                log(`KvmBackend: guest SDK path: ${this.guestSdkPath}`);
             }
         }
         // Forward to guest so it can prepare the SDK (or defer until spawn)
