@@ -874,7 +874,7 @@ const QMP_CAPABILITIES = JSON.stringify({ execute: 'qmp_capabilities' });
 
 /** Event types forwarded from the guest sdk-daemon to subscribers. */
 const FORWARDED_EVENTS = new Set([
-    'stdout', 'stderr', 'exit', 'networkStatus', 'apiReachability',
+    'stdout', 'stderr', 'exit', 'networkStatus', 'apiReachability', 'ready',
 ]);
 
 class KvmBackend extends BackendBase {
