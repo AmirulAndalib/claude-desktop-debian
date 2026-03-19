@@ -1112,8 +1112,7 @@ class KvmBackend extends BackendBase {
                 ], { stdio: 'pipe', timeout: 60000 });
                 log('KvmBackend: smol-bin conversion complete');
             } catch (e) {
-                log(`KvmBackend: smol-bin conversion failed: ` +
-                    e.message);
+                log(`KvmBackend: smol-bin conversion failed: ${e.message}`);
             }
         }
         // Check bundle dir first, then VM_BASE_DIR.
