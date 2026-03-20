@@ -809,7 +809,7 @@ class BwrapBackend extends LocalBackend {
             try {
                 const target = fs.readlinkSync(dir);
                 bwrapArgs.push('--symlink', target, dir);
-            } catch (_) {
+            } catch {
                 if (fs.existsSync(dir)) {
                     bwrapArgs.push('--ro-bind', dir, dir);
                 }
@@ -846,7 +846,20 @@ class BwrapBackend extends LocalBackend {
         bwrapArgs.push('--dir', `/sessions/${name}`);
         bwrapArgs.push('--dir', sessionMnt);
 
+        // Bind mounts from mountPath() calls (writable)
+        const boundPaths = new Set();
+        for (const [mountName, hostPath] of this.mountBinds) {
+            if (fs.existsSync(hostPath) && !boundPaths.has(hostPath)) {
+                const guestPath = `${sessionMnt}/${mountName}`;
+                bwrapArgs.push('--bind', hostPath, guestPath);
+                boundPaths.add(hostPath);
+                log(`BwrapBackend spawn: mountBind ${mountName}: ${hostPath} -> ${guestPath}`);
+            }
+        }
+
+        // Bind mounts from additionalMounts / mountMap
         for (const [mountName, hostPath] of Object.entries(mountMap)) {
+            if (boundPaths.has(hostPath)) continue;
             try {
                 if (!fs.existsSync(hostPath)) {
                     fs.mkdirSync(hostPath, { recursive: true });
@@ -859,11 +872,35 @@ class BwrapBackend extends LocalBackend {
             const mode = additionalMounts?.[mountName]?.mode;
             const bindType = mode === 'ro' ? '--ro-bind' : '--bind';
             bwrapArgs.push(bindType, hostPath, guestPath);
+            boundPaths.add(hostPath);
             log(`BwrapBackend spawn: mount ${mountName}: ${hostPath} -> ${guestPath} (${mode || 'rw'})`);
         }
 
-        // Namespace isolation + actual command
+        // Derive guest working directory from the spawn cwd param.
+        // cwd arrives as /sessions/<name> or /sessions/<name>/mnt/<mount>.
+        // If it already contains /mnt/, use it directly; otherwise append
+        // the first user mount to land inside the project directory.
+        const rawCwd = params.cwd || '';
+        let guestWorkDir;
+        if (rawCwd.includes('/mnt/')) {
+            guestWorkDir = rawCwd;
+        } else {
+            const primaryMount = Object.keys(mountMap).find(
+                n => !n.startsWith('.') && n !== 'uploads',
+            );
+            guestWorkDir = primaryMount
+                ? `${sessionMnt}/${primaryMount}`
+                : sessionMnt;
+            if (!primaryMount) {
+                log('BwrapBackend spawn: warning: no primary mount found, cwd set to session root');
+            }
+        }
+
+        // Namespace isolation + actual command.
+        // --chdir is placed here (just before --) so the sandbox
+        // filesystem is fully set up when it takes effect.
         bwrapArgs.push(
+            '--chdir', guestWorkDir,
             '--unshare-pid',
             '--die-with-parent',
             '--new-session',
@@ -872,21 +909,12 @@ class BwrapBackend extends LocalBackend {
             ...rawArgs,
         );
 
-        // Use the primary user mount as cwd (first non-dotfile, non-uploads mount)
-        const primaryMount = Object.keys(mountMap).find(
-            n => !n.startsWith('.') && n !== 'uploads',
-        );
-        const guestWorkDir = primaryMount
-            ? `${sessionMnt}/${primaryMount}`
-            : sessionMnt;
-
         log(`BwrapBackend spawn: bwrap args=${JSON.stringify(bwrapArgs)}`);
         log(`BwrapBackend spawn: cwd=${guestWorkDir}`);
 
         // Use host-side cwd for Node's spawn (guest paths don't exist
         // on host). bwrap --chdir sets the actual cwd inside the sandbox.
-        this._spawnLocal(id, 'bwrap',
-            ['--chdir', guestWorkDir, ...bwrapArgs],
+        this._spawnLocal(id, 'bwrap', bwrapArgs,
             os.homedir(), mergedEnv);
         return {};
     }
