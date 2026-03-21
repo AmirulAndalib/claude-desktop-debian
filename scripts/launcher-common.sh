@@ -490,8 +490,10 @@ print(len(servers))
 			_pass 'KVM: accessible'
 		else
 			"$_kvm_issue" 'KVM: /dev/kvm exists but not accessible'
-			_info "Fix: sudo usermod -aG kvm $USER"
-			_info '(Log out and back in after running this)'
+			if $_kvm_active; then
+				_info "Fix: sudo usermod -aG kvm $USER"
+				_info '(Log out and back in after running this)'
+			fi
 		fi
 	else
 		"$_kvm_issue" 'KVM: not available'
@@ -548,7 +550,13 @@ print(len(servers))
 
 	# Determine active backend (matches daemon's detectBackend())
 	local cowork_backend='none (host-direct, no isolation)'
-	if command -v bwrap &>/dev/null \
+	if [[ -n ${COWORK_VM_BACKEND-} ]]; then
+		case ${COWORK_VM_BACKEND,,} in
+			kvm)  cowork_backend='KVM (full VM isolation, via override)' ;;
+			bwrap) cowork_backend='bubblewrap (namespace sandbox, via override)' ;;
+			host) cowork_backend='host-direct (no isolation, via override)' ;;
+		esac
+	elif command -v bwrap &>/dev/null \
 		&& bwrap --ro-bind / / true &>/dev/null; then
 		cowork_backend='bubblewrap (namespace sandbox)'
 	elif [[ -e /dev/kvm ]] \

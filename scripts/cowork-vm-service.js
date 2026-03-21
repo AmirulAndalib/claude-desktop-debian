@@ -1813,6 +1813,12 @@ function detectBackend(emitEvent) {
             stdio: 'pipe', timeout: 5000
         });
         log('Backend: bwrap');
+        // Hint for users upgrading from KVM-first auto-detection
+        try {
+            fs.accessSync('/dev/kvm', fs.constants.R_OK | fs.constants.W_OK);
+            log('Note: KVM is available but bwrap is now the default. '
+                + 'Set COWORK_VM_BACKEND=kvm for full VM isolation.');
+        } catch (_) { /* KVM not available, no hint needed */ }
         return new BwrapBackend(emitEvent);
     } catch (e) {
         log(`bwrap not available: ${e.message}`);
