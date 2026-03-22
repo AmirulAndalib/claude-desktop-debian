@@ -525,7 +525,7 @@ jobs:
           - Don't overpromise fixes or timelines
           - If the classification is "duplicate", link to the duplicate issue
           - If "needs-info", ask the specific questions from the classification
-          - Output ONLY the comment text, no wrapping or explanation
+          - Output ONLY the comment text, no wrapping or explanation. Do not ask for approval, confirmation, or permission. Your output will be posted directly.
           - End with this exact attribution block:
 
           ---
@@ -536,6 +536,7 @@ jobs:
           } > /tmp/comment-prompt.txt
 
           comment_result=$(claude -p "$(cat /tmp/comment-prompt.txt)" \
+            --dangerously-skip-permissions \
             --model claude-sonnet-4-6 \
             --max-budget-usd 2.00 \
             2>/dev/null) || {
