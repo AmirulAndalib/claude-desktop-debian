@@ -271,6 +271,146 @@ _fail() {
 _warn() { echo -e "${_yellow}[WARN]${_reset} $*"; }
 _info() { echo -e "       $*"; }
 
+# Check custom bwrap mount configuration and report findings
+_doctor_check_bwrap_mounts() {
+	local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/Claude"
+	local config_file="$config_dir/claude_desktop_linux_config.json"
+
+	[[ -f $config_file ]] || return 0
+
+	local parser=''
+	if command -v python3 &>/dev/null; then
+		parser='python3'
+	elif command -v node &>/dev/null; then
+		parser='node'
+	else
+		return 0
+	fi
+
+	local mounts_json=''
+	if [[ $parser == 'python3' ]]; then
+		mounts_json=$(python3 - "$config_file" 2>/dev/null <<'PYEOF'
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        cfg = json.load(f)
+    mounts = cfg.get('preferences', {}).get('coworkBwrapMounts', {})
+    if mounts:
+        print(json.dumps(mounts))
+except Exception:
+    pass
+PYEOF
+)
+	else
+		mounts_json=$(node - "$config_file" 2>/dev/null <<'JSEOF'
+try {
+    const fs = require('fs');
+    const cfg = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+    const m = (cfg.preferences || {}).coworkBwrapMounts || {};
+    if (Object.keys(m).length > 0)
+        process.stdout.write(JSON.stringify(m));
+} catch (_) {}
+JSEOF
+)
+	fi
+
+	if [[ -z $mounts_json ]]; then
+		_info 'Bwrap mounts: default (no custom configuration)'
+		return 0
+	fi
+
+	_info 'Bwrap custom mount configuration detected:'
+
+	local parsed_output=''
+	if [[ $parser == 'python3' ]]; then
+		parsed_output=$(python3 - "$mounts_json" 2>/dev/null <<'PYEOF'
+import json, sys
+m = json.loads(sys.argv[1])
+for p in m.get('additionalROBinds', []):
+    print(p)
+print('---')
+for p in m.get('additionalBinds', []):
+    print(p)
+print('---')
+for p in m.get('disabledDefaultBinds', []):
+    print(p)
+PYEOF
+)
+	else
+		parsed_output=$(node - "$mounts_json" 2>/dev/null <<'JSEOF'
+const m = JSON.parse(process.argv[1]);
+(m.additionalROBinds || []).forEach(p => console.log(p));
+console.log('---');
+(m.additionalBinds || []).forEach(p => console.log(p));
+console.log('---');
+(m.disabledDefaultBinds || []).forEach(p => console.log(p));
+JSEOF
+)
+	fi
+
+	local ro_binds='' rw_binds='' disabled_binds=''
+	local section=0
+	while IFS= read -r line; do
+		if [[ $line == '---' ]]; then
+			((section++))
+			continue
+		fi
+		case $section in
+			0) ro_binds+="${line}"$'\n' ;;
+			1) rw_binds+="${line}"$'\n' ;;
+			2) disabled_binds+="${line}"$'\n' ;;
+		esac
+	done <<< "$parsed_output"
+	ro_binds=${ro_binds%$'\n'}
+	rw_binds=${rw_binds%$'\n'}
+	disabled_binds=${disabled_binds%$'\n'}
+
+	if [[ -n $ro_binds ]]; then
+		_info '  Read-only mounts:'
+		while IFS= read -r bind_path; do
+			_info "    - $bind_path"
+		done <<< "$ro_binds"
+	fi
+
+	if [[ -n $rw_binds ]]; then
+		_info '  Read-write mounts:'
+		while IFS= read -r bind_path; do
+			_info "    - $bind_path"
+		done <<< "$rw_binds"
+	fi
+
+	local critical_warned=false
+	if [[ -n $disabled_binds ]]; then
+		while IFS= read -r bind_path; do
+			case "$bind_path" in
+				/usr|/etc)
+					_warn \
+						"Disabled default mount: $bind_path" \
+						'(may break system tools!)'
+					critical_warned=true
+					;;
+				*)
+					_info "  Disabled default mount: $bind_path"
+					;;
+			esac
+		done <<< "$disabled_binds"
+		if [[ $critical_warned == true ]]; then
+			_info \
+				'  Disabling /usr or /etc may cause commands' \
+				'to fail inside the sandbox.'
+			_info \
+				'  Restart the daemon after config changes:' \
+				'pkill -f cowork-vm-service'
+		fi
+	fi
+
+	if [[ $critical_warned != true ]]; then
+		_info \
+			'  Note: Restart daemon for config changes:' \
+			'pkill -f cowork-vm-service'
+	fi
+}
+
 # Run all diagnostic checks and print results
 # Arguments: $1 = electron path (optional, for package-specific checks)
 run_doctor() {
@@ -601,6 +741,9 @@ print(len(servers))
 		cowork_backend='KVM (full VM isolation)'
 	fi
 	_info "Cowork isolation: $cowork_backend"
+
+	# Custom bwrap mount configuration
+	_doctor_check_bwrap_mounts
 
 	# -- Orphaned cowork daemon --
 	local _cowork_pids
