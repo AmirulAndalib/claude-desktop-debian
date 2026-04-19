@@ -245,6 +245,23 @@ function buildMountMap(additionalMounts, mountBinds) {
 }
 
 /**
+ * Find the primary user mount name in mountMap — the first key that
+ * is not a dotfile mount (e.g. .claude, .auto-memory) and not the
+ * uploads mount. Used by both resolveWorkDir (HostBackend) and
+ * BwrapBackend.spawn to derive a sensible cwd from the user-selected
+ * project folder when the Electron app sends a session-root path with
+ * no /mnt/{name} component to translate.
+ *
+ * Returns the mount name (string) or null if no user mount exists.
+ */
+function findPrimaryMount(mountMap) {
+    if (!mountMap) return null;
+    return Object.keys(mountMap).find(
+        n => !n.startsWith('.') && n !== 'uploads',
+    ) || null;
+}
+
+/**
  * Build a merged environment for a spawned process. Combines filtered
  * daemon env with app-provided env, and translates guest paths in
  * CLAUDE_CONFIG_DIR and CLAUDE_COWORK_MEMORY_PATH_OVERRIDE using mountMap.
@@ -326,20 +343,90 @@ function buildSpawnEnv(appEnv, mountMap) {
 }
 
 /**
+ * Split a CSV --allowedTools / --disallowedTools value into entries
+ * while respecting parentheses. Tool patterns may legitimately contain
+ * commas inside parens (e.g. "Bash(npm test, npm build)"), so a naive
+ * split on "," would corrupt them. Returns an array of entries with no
+ * trimming applied.
+ */
+function splitToolList(csv) {
+    const result = [];
+    if (!csv) return result;
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < csv.length; i++) {
+        const ch = csv[i];
+        if (ch === '(') depth++;
+        else if (ch === ')') depth = Math.max(0, depth - 1);
+        else if (ch === ',' && depth === 0) {
+            result.push(csv.slice(start, i));
+            start = i + 1;
+        }
+    }
+    result.push(csv.slice(start));
+    return result;
+}
+
+/**
+ * Translate VM guest paths embedded inside a CSV tool-permission
+ * string (e.g. --allowedTools value). Each entry is either "Tool"
+ * (passed through) or "Tool(pattern)" (pattern is translated if it
+ * looks like a /sessions/ guest path). Entries whose guest path can't
+ * be mapped to a host path are dropped — a permission rule that
+ * can never match is worse than absent.
+ *
+ * Defensively normalizes leading double slashes (the Electron app
+ * emits "//sessions/..." due to an upstream path.join('/', ...) on an
+ * already-absolute path).
+ */
+function translateEmbeddedGuestPaths(csv, mountMap) {
+    if (!csv) return csv;
+    const out = [];
+    for (const entry of splitToolList(csv)) {
+        const m = entry.match(/^(\w+)\(([^)]+)\)$/);
+        if (!m) {
+            out.push(entry);
+            continue;
+        }
+        const tool = m[1];
+        const normalized = m[2].replace(/^\/+/, '/');
+        if (!normalized.startsWith('/sessions/')) {
+            out.push(entry);
+            continue;
+        }
+        const translated = translateGuestPath(normalized, mountMap || {});
+        if (!translated) {
+            log(`translateEmbeddedGuestPaths: dropping "${entry}" (no host mapping)`);
+            continue;
+        }
+        log(`translateEmbeddedGuestPaths: ${entry} -> ${tool}(${translated})`);
+        out.push(`${tool}(${translated})`);
+    }
+    return out.join(',');
+}
+
+/**
  * Translate args that reference VM guest paths (/sessions/...) to host
- * paths using mountMap. If translation fails, the flag pair is removed.
+ * paths using mountMap. Two flag styles are handled:
+ *   - Single-path flags (--add-dir, --plugin-dir): the value is one
+ *     guest path. Translation failure drops the whole flag pair.
+ *   - Tool-list flags (--allowedTools, --disallowedTools): the value
+ *     is a CSV of "Tool" or "Tool(pattern)" entries. Each entry is
+ *     translated independently; entries that fail are dropped from
+ *     the CSV but the flag itself is retained.
  */
 function cleanSpawnArgs(rawArgs, mountMap) {
     const cleanArgs = [];
     const guestPathFlags = new Set(['--add-dir', '--plugin-dir']);
+    const toolListFlags = new Set(['--allowedTools', '--disallowedTools']);
     for (let i = 0; i < rawArgs.length; i++) {
-        if (guestPathFlags.has(rawArgs[i]) &&
+        const flag = rawArgs[i];
+        const value = rawArgs[i + 1];
+
+        if (guestPathFlags.has(flag) &&
             i + 1 < rawArgs.length &&
-            rawArgs[i + 1].startsWith('/sessions/')) {
-            const flag = rawArgs[i];
-            let hostPath = translateGuestPath(
-                rawArgs[i + 1], mountMap
-            );
+            value.startsWith('/sessions/')) {
+            let hostPath = translateGuestPath(value, mountMap);
             if (hostPath) {
                 // --plugin-dir needs the plugin root, not a skills/
                 // subdirectory — walk up to find it.
@@ -348,15 +435,25 @@ function cleanSpawnArgs(rawArgs, mountMap) {
                         hostPath, os.homedir()
                     );
                 }
-                log(`cleanSpawnArgs: translated ${flag} ${rawArgs[i + 1]} -> ${hostPath}`);
+                log(`cleanSpawnArgs: translated ${flag} ${value} -> ${hostPath}`);
                 cleanArgs.push(flag, hostPath);
             } else {
-                log(`cleanSpawnArgs: removing ${flag} ${rawArgs[i + 1]} (no host mapping)`);
+                log(`cleanSpawnArgs: removing ${flag} ${value} (no host mapping)`);
             }
             i++;
             continue;
         }
-        cleanArgs.push(rawArgs[i]);
+
+        if (toolListFlags.has(flag) && i + 1 < rawArgs.length) {
+            cleanArgs.push(
+                flag,
+                translateEmbeddedGuestPaths(value, mountMap),
+            );
+            i++;
+            continue;
+        }
+
+        cleanArgs.push(flag);
     }
     return cleanArgs;
 }
@@ -410,8 +507,18 @@ function resolveWorkDir(cwd, sharedCwdPath, mountMap) {
             log(`resolveWorkDir: translated "${cwd}" -> "${translated}"`);
             workDir = translated;
         } else {
-            log(`resolveWorkDir: cwd is VM guest path "${cwd}", using home dir`);
-            workDir = os.homedir();
+            // Session-root path (e.g. /sessions/bold-sharp-clarke) has no
+            // /mnt/ component, so translateGuestPath can't resolve it.
+            // Derive cwd from the primary user mount, mirroring what
+            // BwrapBackend does at spawn time.
+            const primaryMount = findPrimaryMount(mountMap);
+            if (primaryMount && mountMap[primaryMount]) {
+                log(`resolveWorkDir: session root "${cwd}", using primary mount "${primaryMount}" -> "${mountMap[primaryMount]}"`);
+                workDir = mountMap[primaryMount];
+            } else {
+                log(`resolveWorkDir: cwd is VM guest path "${cwd}", no primary mount found, using home dir`);
+                workDir = os.homedir();
+            }
         }
     }
 
@@ -1163,9 +1270,7 @@ class BwrapBackend extends LocalBackend {
         );
 
         // Use the primary user mount as cwd (first non-dotfile, non-uploads mount)
-        const primaryMount = Object.keys(mountMap).find(
-            n => !n.startsWith('.') && n !== 'uploads',
-        );
+        const primaryMount = findPrimaryMount(mountMap);
         const guestWorkDir = primaryMount
             ? `${sessionMnt}/${primaryMount}`
             : sessionMnt;
