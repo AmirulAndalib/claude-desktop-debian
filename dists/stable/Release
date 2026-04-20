@@ -1,0 +1,28 @@
+Origin: claude-desktop-debian
+Label: Claude Desktop for Linux
+Codename: stable
+Date: Mon, 20 Apr 2026 12:29:35 UTC
+Architectures: amd64 arm64
+Components: main
+Description: Claude Desktop unofficial Linux packages
+MD5Sum:
+ 19a7139dff32f4870195d07c3e8c17b3 635 main/binary-amd64/Packages
+ a6316ff5135a3de00a890d48cbfcf415 425 main/binary-amd64/Packages.gz
+ 02bfdb0962fdcbc813da34967372124d 152 main/binary-amd64/Release
+ 12f8d2a7a439f84b64ed0d9226dea4d4 635 main/binary-arm64/Packages
+ 5bb2f008ef575467af0bd3223ef5c75d 425 main/binary-arm64/Packages.gz
+ a34b0e690522268f14683fbce7f31005 152 main/binary-arm64/Release
+SHA1:
+ b2854d8925786122bd9330359306d390bd5ef31d 635 main/binary-amd64/Packages
+ d376955548816170b7509936a060869ac992d50f 425 main/binary-amd64/Packages.gz
+ 7e6572fbede38f2753bbf46197b1db20fc4c57a0 152 main/binary-amd64/Release
+ c65a0da646dd7a9d12211a4bc86f40214b5c2d3a 635 main/binary-arm64/Packages
+ d494e0ce2b66cae100932085e0b5e8b55ed7d3c3 425 main/binary-arm64/Packages.gz
+ 9802bd79bf2009c5180e1df0d99da2dc7ba8f2f4 152 main/binary-arm64/Release
+SHA256:
+ df3018d10ac7ca54d7cdea2c2cb8f01557bfae85df3181cc6416ad3d24218488 635 main/binary-amd64/Packages
+ 677fa2a23fd3acbcffb9bd56d20829085c09f0db952fa5d9b8a0be168fd718cc 425 main/binary-amd64/Packages.gz
+ 2a288260d0eff0aee3beac611d50b711a495e6eaf053fffddf35ebdf498b0247 152 main/binary-amd64/Release
+ 10a2a6064dea77277b481816d406eda63d2255b7b8bb9e51b4d64b8ca7b5251c 635 main/binary-arm64/Packages
+ b80547a64e78e0474fad76c4cca1cf2a7c056e3d4d58b0119996822bf5bb963f 425 main/binary-arm64/Packages.gz
+ 96728c0041e79a804531562cb2d8fb2e94869e09578537b2bc0afacf3de7025e 152 main/binary-arm64/Release
