@@ -4,7 +4,7 @@ Hash: SHA512
 Origin: claude-desktop-debian
 Label: Claude Desktop for Linux
 Codename: stable
-Date: Thu, 23 Apr 2026 14:25:18 UTC
+Date: Thu, 23 Apr 2026 14:48:24 UTC
 Architectures: amd64 arm64
 Components: main
 Description: Claude Desktop unofficial Linux packages
@@ -31,17 +31,17 @@ SHA256:
  96728c0041e79a804531562cb2d8fb2e94869e09578537b2bc0afacf3de7025e 152 main/binary-arm64/Release
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEE96Grt/VF6QXwc8RWeM6R1yqp6bkFAmnqK84ACgkQeM6R1yqp
-6bkX1w/9F1hipmYdBm/fcFzHA1ZkFukFQGiGIlpCpzBuVNZxN7kcmz7QZSOlnPVV
-GBUz/410Et/P5HWRWsBOxA5KehiCUcSQump0IDUy6h7eJh8GCrcoFrODc2uQ0hX2
-ERbDIJkgWD1VYthzVELbSQqnucH/v2w68GLkMgtmRcGW3nlBmGkhSLWEyICJIy93
-YdA5YeEo5pnbgcozqcYZ1A2gdUIwgX8LtTSLraHFWdGALVcYJbHVbhItduhKcwQ1
-CiS2Y58U/9KURtzMsQjmHg2DoJ/6vIHI61ghpJ+65aOGBQpjZbA/AJWjms1ldPxQ
-lecouPPebdvlvaaVr50OT3e/jxSlYN09CoHPmhMDXeT+fQU5DJiSnoa6opE0CEZJ
-WryJ9uScDkgre6213wsMTMO9DSxB5WLemFKZn6bGVk9JzB0Kn0GqPLaf+56+N+jf
-ddw3jvyJCid1o3e0C92rUJZy+HRBMnh0Qpo3XSUiplT5ZsxCZULrWsQH89elVL6n
-Tv7qt+H++u0zQGctq6rcgj7KmaSbDZPp2C++XNsKq1WuCugXzJEDCdt2PNyXANlc
-X6r0TS6G+xI1w1rUxxui+cj7t6GKJm5ovtqz1ypKvlLe3MU8TZPzk4uu74EtK5pD
-S1Xmycy5l0P5WRpjoF+pUFQakcRjpTkoUivLcVKpMF2ZXwMdAzE=
-=yJP1
+iQIzBAEBCgAdFiEE96Grt/VF6QXwc8RWeM6R1yqp6bkFAmnqMTgACgkQeM6R1yqp
+6bkOohAAjJFZawe86uxypoPijPgZJjsNDTLknCpM+CuhESr12NqhvbybFJqXHaNa
+jrDmmjUzjL/1UQk9euVEWdmBPOEBGZ6Dr7YPMUXiOiAFqtj7YkHeQAd0bSiD495e
+p/W8Ry4plR25vQtRjwZV3XYobCbIY2sHiKojbxhrSI9m6o3l8vsaw5ycxBGJoHpo
+ChcUctOuakpWCZUPGGr2by0t4xZ3KH5dhIujY204Xuv1WFbxPji2MVREaIA574yS
+8XDzZt3ukC90kfABcCrfnU4atfjnPF1nH+bN8jjrEPdxtTx6yk2m6UFO5dHUvAxg
+J8KrjHjkj/3IrNcaY4QvrhSMCSjGLU0oilSP16yAZcUifJh/pQczfuMSHvGJwUYT
+bpKzJA2DhJYFuUj/zWsgXDbSZhVcDoX14Q+Oh/J/7Yzyw0v+5FQWsSTAYgDhdw+C
+G/uZtn/5/CAHyCv5soSjnhrBVbZEVZmHQOwaFxqt0CDfI0pke7VYB3ZBq9Gydmch
+QERObbBcm69hRPnBQCJxM+F/X481oksyCRyG1RqrzGVS+AQCEwlMoXPfvzItyklB
+to7idpNTYQSTayDnn1tKalF03yWOFrignlVQgyVpmpXuyuq4g1CrZgEzZfOLlVjT
+TIMmj+glDmcsODctkbisL2FhLMCKH6HJBRIVGYZImYBQPzSWJGA=
+=US9l
 -----END PGP SIGNATURE-----
