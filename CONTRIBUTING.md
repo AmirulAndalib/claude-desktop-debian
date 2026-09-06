@@ -91,12 +91,17 @@ CODEOWNERS auto-requests reviews; this list is for human discoverability.
   packaging, docs, `tests/`, `scripts/doctor.sh`. Final say on
   direction and releases.
 - **@aaddrick**: repository owner, so the owner-only surfaces stay here
-  — repo settings, branch protection, Actions secrets and variables
-  (`REPO_VERSION`, `CLAUDE_DESKTOP_VERSION`), and security advisories —
+  — repo settings, branch protection, Actions secrets, and security
+  advisories —
   along with the release credentials (APT/DNF signing, the Cloudflare
   Worker). Co-owner on `.github/workflows/`, `worker/`, `RELEASING.md`,
   and `SECURITY.md`. Otherwise stepped back — still around for
   questions and for pressing the buttons only an owner can press.
+  `REPO_VERSION` and `CLAUDE_DESKTOP_VERSION` are Actions *variables*,
+  not secrets: any collaborator can bump them with `gh variable set`
+  even though the Settings UI page is owner-only. Upstream-triggered
+  releases need no one at all — `check-claude-version.yml` sets the
+  version and pushes the tag itself.
 - **@RayCharlizard**: Cowork (`scripts/patches/cowork-bwrap.sh`,
   `scripts/cowork-fallback/`, `tests/cowork-*.bats`).
 - **@typedrat**: Nix (`flake.nix`, `flake.lock`, `/nix/`).
