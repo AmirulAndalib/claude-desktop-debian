@@ -20,7 +20,7 @@ The repo stays where it is — `aaddrick/claude-desktop-debian`, at @sabiut's re
 
 A repository owned by a personal account has only two access levels — owner and collaborator — so a few things can't be handed over without moving the repo: settings, branch protection, Actions secrets and variables, and security advisories. Those still land on me. Ping me and I'll press the button.
 
-I'll still be around for questions and the occasional PR.
+I'll still be around for questions and the occasional PR — reachable on [GitHub](https://github.com/aaddrick) or [LinkedIn](https://www.linkedin.com/in/aaddrick/).
 
 ---
 
